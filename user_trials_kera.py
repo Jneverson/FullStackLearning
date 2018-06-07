@@ -37,7 +37,6 @@ labels_np = np.array(labels).astype(dtype = np.uint8)
 labels_onehot = (np.arange(51) == labels_np[:, None]).astype(np.uint8) 
 
 x_train, x_test, y_train, y_test = train_test_split(logits, labels_onehot, test_size = 0.25, random_state = 42)
-
 model = Sequential()
 model.add(Dense(units = 500, activation = 'relu', input_dim = x_train.shape[1]))
 model.add(Dense(units = 500, activation = 'relu'))
@@ -46,8 +45,9 @@ model.add(Dense(units = 51, activation = 'softmax'))
 
 model.compile(loss = 'categorical_crossentropy', optimizer = "adam")
 
-model.fit(x_train, y_train, validation_data = (x_test, y_test), verbose = 0, epochs = 10)
 
+model.fit(x_train, y_train, validation_data = (x_test, y_test), verbose = 0, epochs = 10, batch_size = 5147)
+#Correcting the batch_size improved the accuracy to approx. 6 %
 
 
 pred = model.predict(x_test)
