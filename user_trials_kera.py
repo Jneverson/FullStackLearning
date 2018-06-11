@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
+from sklearn.preprocessing import LabelEncoder
 # from sklearn import metrics
 # import os
 featurelen = 17
@@ -13,6 +14,7 @@ num_classes = 2
 logits = np.loadtxt(open("angry_bird_data.csv", "rb"), delimiter = ",", skiprows = 1, usecols = range(featurelen))
 labels = np.loadtxt(open("angry_bird_data.csv", "rb"), delimiter = ",", skiprows = 1, usecols = (-1,))
 
+labels = [x - 22 for x in labels]
 # num_classes = 2\
 # data =  np.loadtxt(open("angry_bird_data.csv", "rb"), delimiter = ",", skiprows = 1)
 
@@ -31,24 +33,42 @@ labels = np.loadtxt(open("angry_bird_data.csv", "rb"), delimiter = ",", skiprows
 
 # x, y = to_xy(features, labels)
 
+
 labels_np = np.array(labels).astype(dtype = np.uint8)
+print(len(labels_np))
 
 #Convert the int numpy array into a one-hot matrix
-labels_onehot = (np.arange(51) == labels_np[:, None]).astype(np.uint8) 
+
+labels_onehot = (np.arange(30) == labels_np[:, None]).astype(np.uint8) 
+print(labels_onehot[-1])
+
+# print([x for x in labels_onehot[-1]])
+
+'''
+encoder = LaberEncoder()
+encoder.fit(labels)
+encoded_Y = encoder.transform(Y)
+#Convert integers to one_hot format
+dummy_y = np_utils.to_categorical(encoded_Y)  ####IMPORTANT FOR REPORT
+
+'''
 
 x_train, x_test, y_train, y_test = train_test_split(logits, labels_onehot, test_size = 0.25, random_state = 42)
+
+print(type(x_train))
+dir(x_train)
+print(x_train.shape[1])
 model = Sequential()
-model.add(Dense(units = 500, activation = 'relu', input_dim = x_train.shape[1]))
-model.add(Dense(units = 500, activation = 'relu'))
-model.add(Dense(units = 500, activation = 'relu'))
-model.add(Dense(units = 51, activation = 'softmax'))
+model.add(Dense(units = 100, activation = 'relu', input_dim = x_train.shape[1]))
+model.add(Dense(units = 100, activation = 'relu'))
+model.add(Dense(units = 100, activation = 'relu'))
+model.add(Dense(units = len(labels_onehot[-1]), activation = 'softmax'))
 
 model.compile(loss = 'categorical_crossentropy', optimizer = "adam")
 
 
-model.fit(x_train, y_train, validation_data = (x_test, y_test), verbose = 0, epochs = 10, batch_size = 5147)
-#Correcting the batch_size improved the accuracy to approx. 6 %
-
+model.fit(x = x_train, y = y_train, validation_data = (x_test, y_test), verbose = 0, epochs = 1000, batch_size = 5147)
+#Correcting the batch_size improved the accuracy to approx. 6 % for 10 epochs)
 
 pred = model.predict(x_test)
 pred = np.argmax(pred, axis = 1)
