@@ -1,67 +1,191 @@
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation
 import numpy as np
-import tensorflow as tf
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
 from sklearn.preprocessing import LabelEncoder
 import keras.optimizers as optimizer
+from keras.utils.np_utils import to_categorical
+from keras.layers import Dropout
+from keras.layers import BatchNormalization
+import itertools as it
+
 featurelen = 17
-num_classes = 2
+
+def prepare_data(featurecols = range(featurelen)):
+
+	temp_logits = []
+	temp_labels = []
+	logits = None
+	labels = None
+
+	numfiles = int(input("How many training sets are you using?: "))
+	if numfiles > 1:
+		user_string = input("Enter the names of the files you would like to merge\nseperated by a comma with no spaces: ")
+		files = user_string.split(",")
+		for item in files:
+			temp_logits.append(np.loadtxt(open(item, "rb"), delimiter = ",", skiprows = 1, usecols = featurecols))
+			temp_labels.append(np.loadtxt(open(item, "rb"), delimiter = ",", skiprows = 1, usecols = (-1,), dtype = np.uint8))
+
+		for i in range(len(temp_logits) - 1):
+			logits = np.vstack([temp_logits[i], temp_logits[i + 1]])
+			labels = np.hstack([temp_labels[i], temp_labels[i + 1]])
+	else:
+		file = input("Enter the name of your file: ")
+		logits = np.loadtxt(open(file, "rb"), delimiter = ",", skiprows = 1, usecols = featurecols)
+		labels = np.loadtxt(open(file, "rb"), delimiter = ",", skiprows = 1, usecols = (-1,), dtype = np.uint8)
+
+	return logits, labels
+
+def test_combination(combination):
+	col_list = list(range(featurelen))
+	col_combinations = list(it.combinations(col_list, combination))
+	print("Total Cycle count: " + str(len(col_combinations)))
+
+	for item in col_combinations:
+		print("Cycle " + str(col_combinations.index(item) + 1) + " of " + str(col_combinations) + " starting...")
+		file.write("Column " + str(item[0]) + " and " + str(item[1]) + " only\n")
+		file.write(model(featurecols = item))
+		file.write("\n")
+		print("Cycle " + str(col_combinations.index(item) + 1) + " of " + str(col_combinations) + " ending...")
+
+def test_single():
+	for i in range(featurelen):
+		print("Cycle " + str(i + 1)  + " of " + str(featurelen) + " starting...")
+		file.write("Column " + str(i) + " only\n")
+		file.write(model(featurecols = (i,)))
+		file.write("\n")
+		print("Cycle " + str(i + 1)  + " of " + str(featurelen) + " ending...")
+
+def fisher_extraction_test(file):
+	col_list = list(range(featurelen))
+	fisher_list = [6,0,5,1,3,15,7,8,9,12,14,4,11,16,2,13,10]
+
+	file.write("\n")
+	file.write("Intended test by Professor Regarding Fisher Score:")
+	file.write("\n")
+	file.write("Fisher Score Decreasing Order Test:")
+	file.write("\n")
+
+	for i in fisher_list:
+		print("Cycle " + str(fisher_list.index(i) + 1)  + " of " + str(featurelen) + " starting...")
+		file.write("Column " + str(i) + " extracted\n")
+		col_list.remove(i)
+		file.write(model(featurecols = col_list))
+		file.write("\n")
+		print("Cycle " + str(fisher_list.index(i) + 1)  + " of " + str(featurelen) + " ending...")
+
+def feature_validity_testing(): 
+	#Destination File for Configurations
+	file = open('/home/infinity/Documents/Neural_Research/model_configurations/nn_feature_configurations.txt', 'a+')
+	#File Path for Linux Remote Server
+	# file = open(str(Path.home()) + '/documents/nn_feature_configurations.txt'
+	'''
+	#Base Test, All:------------------------------------------------------------------------------------
+	file.write("All Features:\n" + model())
+	file.write("\n")
+
+	#Individual Feature Testing:-------------------------------------------------------------------------------------
+	# test_single()
+
+	#Combination Testing------------------------------------------------------------------------------
+	test_combination(combination = 2)
+	'''	
+	#Fisher Extraction Test
+	# for i in fisher_list:
+	# 	# col_list = list(range(featurelen))
+	# 	print("Cycle " + str(fisher_list.index(i) + 1)  + " of " + str(featurelen) + " starting...")
+	# 	file.write("Column " + str(i) + " extracted\n")
+	# 	col_list.remove(i)
+	# 	file.write(model(featurecols = col_list))
+	# 	file.write("\n")
+	# 	print("Cycle " + str(fisher_list.index(i) + 1)  + " of " + str(featurelen) + " ending...")
+	fisher_extraction_test(file)
+
+	file.close()
+
+def model(featurecols = range(featurelen)):
+	# logits = np.loadtxt(open(angry_bird_no_outlier, "rb"), delimiter = ",", skiprows = 1, usecols = featurecols) 
+
+	# labels = np.loadtxt(open(angry_bird_no_outlier, "rb"), delimiter = ",", skiprows = 1, usecols = (-1,), dtype = np.uint8)
+	logits, labels = prepare_data(featurecols = featurecols)
+	labels = [x - 22 for x in labels]
+
+	encoder = LabelEncoder()
+	encoder.fit(labels)
+	encoded_Y = encoder.transform(labels)
+	labels_onehot = to_categorical(encoded_Y, num_classes=30)
+
+	x_train, x_test, y_train, y_test = train_test_split(logits, labels_onehot, test_size = 0.25, random_state = 42, shuffle = True)
+
+	model = Sequential()
+	#Determine whether user is trying to enter a tuple representing a single column or multiple columns as another type
+	if(len(featurecols) == 1):
+		model.add(Dense(units = 1000, activation = 'sigmoid', input_dim = 1, use_bias = True, bias_initializer = "random_uniform"))
+	else: 
+		model.add(Dense(units = 1000, activation = 'sigmoid', input_dim = x_train.shape[1], use_bias = True, bias_initializer = "random_uniform"))
+	model.add(Dense(units = 750, activation = 'sigmoid', use_bias = True, bias_initializer = "random_uniform"))
+	model.add(Dense(units = 500, activation = 'sigmoid', use_bias = True, bias_initializer = "random_uniform"))
+	model.add(Dense(units = 250, activation = 'sigmoid', use_bias = True, bias_initializer = "random_uniform"))
+	model.add(Dense(units = len(labels_onehot[-1]), activation = 'softmax'))
+
+	model.compile(loss = 'categorical_crossentropy', optimizer = optimizer.Adam())
+	model.fit(x = x_train, y = y_train, validation_data = (x_test, y_test), verbose = 2, epochs = 50, batch_size = 1000, shuffle = True)
+	pred = model.predict(x_test)
+	pred = np.argmax(pred, axis = 1)
+	y_compare = np.argmax(y_test, axis = 1)
+	score = metrics.accuracy_score(y_compare, pred)
+	# print("Final accuracy: {}".format(score *100) + " %")
+	return "Final accuracy: {}".format(score * 100) + " %"
+
+def model_with_batch_normalization(featurecols = range(featurelen)):
+
+	# logits = np.loadtxt(open(angry_bird_no_outlier, "rb"), delimiter = ",", skiprows = 1, usecols = featurecols) 
+	# labels = np.loadtxt(open(angry_bird_no_outlier, "rb"), delimiter = ",", skiprows = 1, usecols = (-1,), dtype = np.uint8)
+	logits, labels = prepare_data()
+	labels = [x - 22 for x in labels]
+
+	encoder = LabelEncoder()
+	encoder.fit(labels)
+	encoded_Y = encoder.transform(labels)
+	labels_onehot = to_categorical(encoded_Y, num_classes=30)
+
+	x_train, x_test, y_train, y_test = train_test_split(logits, labels_onehot, test_size = 0.25, random_state = 42, shuffle = True)
+	print(x_train.shape[0])
+	print(x_train.shape[1])
+
+	model = Sequential()
+	#Determine whether user is trying to enter a tuple representing a single column or multiple columns as another type
+	if(len(featurecols) == 1):
+		model.add(Dense(units = 1000, activation = 'sigmoid', input_dim = 1, use_bias = False))
+	else: 
+		model.add(Dense(units = 1000, activation = 'sigmoid', input_dim = x_train.shape[1], use_bias = False))
+	model.add(Dropout(0.2))
+	model.add(BatchNormalization())
+	model.add(Dense(units = 750, activation = 'sigmoid', use_bias = False))
+	model.add(Dropout(0.2))
+	model.add(BatchNormalization())
+	model.add(Dense(units = 500, activation = 'sigmoid', use_bias = False))
+	model.add(Dropout(0.2))
+	model.add(BatchNormalization())
+	model.add(Dense(units = 250, activation = 'sigmoid', use_bias = False))
+	model.add(Dropout(0.2))
+	model.add(BatchNormalization())
+	model.add(Dense(units = len(labels_onehot[-1]), activation = 'softmax'))
 
 
-logits = np.loadtxt(open("angry_bird_data.csv", "rb"), delimiter = ",", skiprows = 1, usecols = range(featurelen))
-labels = np.loadtxt(open("angry_bird_data.csv", "rb"), delimiter = ",", skiprows = 1, usecols = (-1,))
+	model.compile(loss = 'categorical_crossentropy', optimizer = optimizer.Adam())
 
-labels = [x - 22 for x in labels]
-# num_classes = 2\
-# data =  np.loadtxt(open("angry_bird_data.csv", "rb"), delimiter = ",", skiprows = 1)
+	model.fit(x = x_train, y = y_train, validation_data = (x_test, y_test), verbose = 2, epochs = 500, batch_size = 1000, shuffle = True)
 
-# labels = []				
-# logits = [] #features
+	pred = model.predict(x_test)
+	pred = np.argmax(pred, axis = 1)
+	y_compare = np.argmax(y_test, axis = 1)
+	score = metrics.accuracy_score(y_compare, pred)
+	# print("Final accuracy: {}".format(score *100) + " %")
+	return "Final accuracy: {}".format(score * 100) + " %"
 
-# for item in data:
-# 	item = item.flatten()  #May be redundant
-# 	labels.append(int(item[-1])) #Take User ID as Label
-
-# 	temp = []
-# 	for x in item[0:-1]: #Up to and not including the last element
-# 		temp.append(float(x))
-# 	logits.append(temp)
-
-labels_np = np.array(labels).astype(dtype = np.uint8)
-
-labels_onehot = (np.arange(30) == labels_np[:, None]).astype(np.uint8) 
-
-'''
-encoder = LaberEncoder()
-encoder.fit(labels)
-encoded_Y = encoder.transform(Y)
-#Convert integers to one_hot format
-dummy_y = np_utils.to_categorical(encoded_Y)  ####IMPORTANT FOR REPORT
-
-'''
-
-x_train, x_test, y_train, y_test = train_test_split(logits, labels_onehot, test_size = 0.30, random_state = 42, shuffle = True)
-
-model = Sequential()
-model.add(Dense(units = 100, activation = 'sigmoid', input_dim = x_train.shape[1]))
-model.add(Dense(units = 100, activation = 'sigmoid'))
-model.add(Dense(units = 100, activation = 'sigmoid'))
-model.add(Dense(units = len(labels_onehot[-1]), activation = 'softmax'))
-
-
-model.compile(loss = 'categorical_crossentropy', optimizer = optimizer.Adam())
-
-model.fit(x = x_train, y = y_train, validation_data = (x_test, y_test), verbose = 2, epochs = 5000, batch_size = 1000)
-
-pred = model.predict(x_test)
-pred = np.argmax(pred, axis = 1)
-y_compare = np.argmax(y_test, axis = 1)
-
-score = metrics.accuracy_score(y_compare, pred)
-print("Final accuracy: {}".format(score *100) + " %")
-
-
-#Classification Accuracy is not a good metric
-#Measure a metric that catches TPR FPR AUC EER
+print(model())
+# prepare_data()
+# feature_validity_testing()
+# print(model_with_batch_normalization())
