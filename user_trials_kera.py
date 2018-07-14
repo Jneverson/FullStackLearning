@@ -1,14 +1,12 @@
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation
 import numpy as np
-import tensorflow as tf
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
 from sklearn.preprocessing import LabelEncoder
 import keras.optimizers as optimizer
 from keras.utils.np_utils import to_categorical
 from keras.layers import Dropout
-import pandas as pd
 
 angry_bird_no_outlier = "angrybirds_30users_removed_outlier_exValues.csv"
 angry_bird_with_outlier = "angry_bird_data.csv"
@@ -30,7 +28,7 @@ def model(featurecols = range(featurelen)):
 	x_train, x_test, y_train, y_test = train_test_split(logits, labels_onehot, test_size = 0.25, random_state = 42, shuffle = True)
 
 	model = Sequential() 
-	model.add(Dense(units = 1000, activation = 'sigmoid', input_dim = x_train.shape[0], use_bias = True, bias_initializer = "random_uniform"))
+	model.add(Dense(units = 1000, activation = 'sigmoid', input_dim = x_train.shape[1], use_bias = True, bias_initializer = "random_uniform"))
 	model.add(Dense(units = 750, activation = 'sigmoid', use_bias = True, bias_initializer = "random_uniform"))
 	model.add(Dense(units = 500, activation = 'sigmoid', use_bias = True, bias_initializer = "random_uniform"))
 	model.add(Dense(units = 250, activation = 'sigmoid', use_bias = True, bias_initializer = "random_uniform"))
