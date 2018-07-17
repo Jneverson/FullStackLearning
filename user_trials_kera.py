@@ -7,9 +7,9 @@ from sklearn.preprocessing import LabelEncoder
 import keras.optimizers as optimizer
 from keras.utils.np_utils import to_categorical
 from keras.layers import Dropout
-<<<<<<< HEAD
 from keras.layers import BatchNormalization
 import itertools as it
+from pathlib import Path
 
 featurelen = 17
 
@@ -65,22 +65,36 @@ def fisher_extraction_test(file):
 	file.write("\n")
 	file.write("Intended test by Professor Regarding Fisher Score:")
 	file.write("\n")
-	file.write("Fisher Score Decreasing Order Test:")
+	file.write("Fisher Score Decreasing Order Extraction Test:")
+	file.write("\n")
+	file.write("------------------------------------------")
 	file.write("\n")
 
 	for i in fisher_list:
-		print("Cycle " + str(fisher_list.index(i) + 1)  + " of " + str(featurelen) + " starting...")
+		if len(col_list) <= 1:
+			break
+		print("Cycle " + str(fisher_list.index(i) + 1)  + " of " + str(featurelen - 1) + " starting...")
 		file.write("Column " + str(i) + " extracted\n")
 		col_list.remove(i)
 		file.write(model(featurecols = col_list))
 		file.write("\n")
-		print("Cycle " + str(fisher_list.index(i) + 1)  + " of " + str(featurelen) + " ending...")
+		print("Cycle " + str(fisher_list.index(i) + 1)  + " of " + str(featurelen - 1) + " ending...")
+	
+	fisher_list.remove(col_list[0])
+	# fisher_list.reverse() No need to reverse, readding first what was taken out first
+	file.write("Fisher Score Re-addition according to decreasing order test\n")
+	for i in fisher_list:
+		print("Cycle " + str(fisher_list.index(i) + 1)  + " of " + str(featurelen - 1) + " starting...")
+		file.write("Column " + str(i) + " added\n")
+		col_list.append(i)
+		file.write(model(featurecols = col_list))
+		file.write("\n")
+		print("Cycle " + str(fisher_list.index(i) + 1)  + " of " + str(featurelen - 1) + " ending...")
 
 def feature_validity_testing(): 
-	#Destination File for Configurations
-	file = open('/home/infinity/Documents/Neural_Research/model_configurations/nn_feature_configurations.txt', 'a+')
-	#File Path for Linux Remote Server
-	# file = open(str(Path.home()) + '/documents/nn_feature_configurations.txt'
+	# Destination File for Configurations
+	# file = open('/home/infinity/Documents/Neural_Research/model_configurations/nn_feature_configurations.txt', 'a+')
+	file = open(str(Path.home()) + 'nn_feature_configurations.txt', 'a+')
 	'''
 	#Base Test, All:------------------------------------------------------------------------------------
 	file.write("All Features:\n" + model())
@@ -93,23 +107,15 @@ def feature_validity_testing():
 	test_combination(combination = 2)
 	'''	
 	#Fisher Extraction Test
-	# for i in fisher_list:
-	# 	# col_list = list(range(featurelen))
-	# 	print("Cycle " + str(fisher_list.index(i) + 1)  + " of " + str(featurelen) + " starting...")
-	# 	file.write("Column " + str(i) + " extracted\n")
-	# 	col_list.remove(i)
-	# 	file.write(model(featurecols = col_list))
-	# 	file.write("\n")
-	# 	print("Cycle " + str(fisher_list.index(i) + 1)  + " of " + str(featurelen) + " ending...")
 	fisher_extraction_test(file)
 
 	file.close()
 
 def model(featurecols = range(featurelen)):
-	# logits = np.loadtxt(open(angry_bird_no_outlier, "rb"), delimiter = ",", skiprows = 1, usecols = featurecols) 
+	logits = np.loadtxt(open('angrybirds.csv', "rb"), delimiter = ",", skiprows = 1, usecols = featurecols) 
 
-	# labels = np.loadtxt(open(angry_bird_no_outlier, "rb"), delimiter = ",", skiprows = 1, usecols = (-1,), dtype = np.uint8)
-	logits, labels = prepare_data(featurecols = featurecols)
+	labels = np.loadtxt(open('angrybirds.csv', "rb"), delimiter = ",", skiprows = 1, usecols = (-1,), dtype = np.uint8)
+	# logits, labels = prepare_data(featurecols = featurecols)
 	labels = [x - 22 for x in labels]
 
 	encoder = LabelEncoder()
@@ -131,13 +137,13 @@ def model(featurecols = range(featurelen)):
 	model.add(Dense(units = len(labels_onehot[-1]), activation = 'softmax'))
 
 	model.compile(loss = 'categorical_crossentropy', optimizer = optimizer.Adam())
-	model.fit(x = x_train, y = y_train, validation_data = (x_test, y_test), verbose = 2, epochs = 50, batch_size = 1000, shuffle = True)
+	model.fit(x = x_train, y = y_train, validation_data = (x_test, y_test), verbose = 2, epochs = 200, batch_size = 1000, shuffle = True)
 	pred = model.predict(x_test)
 	pred = np.argmax(pred, axis = 1)
 	y_compare = np.argmax(y_test, axis = 1)
 	score = metrics.accuracy_score(y_compare, pred)
 	# print("Final accuracy: {}".format(score *100) + " %")
-	return "Final accuracy: {}".format(score * 100) + " %"
+	return "Final accuracy: {}+".format(score * 100) + " %"
 
 def model_with_batch_normalization(featurecols = range(featurelen)):
 
@@ -152,8 +158,7 @@ def model_with_batch_normalization(featurecols = range(featurelen)):
 	labels_onehot = to_categorical(encoded_Y, num_classes=30)
 
 	x_train, x_test, y_train, y_test = train_test_split(logits, labels_onehot, test_size = 0.25, random_state = 42, shuffle = True)
-	print(x_train.shape[0])
-	print(x_train.shape[1])
+
 
 	model = Sequential()
 	#Determine whether user is trying to enter a tuple representing a single column or multiple columns as another type
@@ -177,7 +182,7 @@ def model_with_batch_normalization(featurecols = range(featurelen)):
 
 	model.compile(loss = 'categorical_crossentropy', optimizer = optimizer.Adam())
 
-	model.fit(x = x_train, y = y_train, validation_data = (x_test, y_test), verbose = 2, epochs = 500, batch_size = 1000, shuffle = True)
+	model.fit(x = x_train, y = y_train, validation_data = (x_test, y_test), verbose = 2, epochs = 100, batch_size = 1000, shuffle = True)
 
 	pred = model.predict(x_test)
 	pred = np.argmax(pred, axis = 1)
@@ -186,49 +191,15 @@ def model_with_batch_normalization(featurecols = range(featurelen)):
 	# print("Final accuracy: {}".format(score *100) + " %")
 	return "Final accuracy: {}".format(score * 100) + " %"
 
-print(model())
+# print(model())
 # prepare_data()
-# feature_validity_testing()
-# print(model_with_batch_normalization())
-=======
-
-angry_bird_no_outlier = "angrybirds_30users_removed_outlier_exValues.csv"
-angry_bird_with_outlier = "angry_bird_data.csv"
-featurelen = 17
-num_classes = 2
-
-def model(featurecols = range(featurelen)):
-
-	logits = np.loadtxt(open(angry_bird_no_outlier, "rb"), delimiter = ",", skiprows = 1, usecols = featurecols) 
-	labels = np.loadtxt(open(angry_bird_no_outlier, "rb"), delimiter = ",", skiprows = 1, usecols = (-1,), dtype = np.uint8)
-
-	labels = [x - 22 for x in labels]
-
-	encoder = LabelEncoder()
-	encoder.fit(labels)
-	encoded_Y = encoder.transform(labels)
-	labels_onehot = to_categorical(encoded_Y, num_classes=30)
-
-	x_train, x_test, y_train, y_test = train_test_split(logits, labels_onehot, test_size = 0.25, random_state = 42, shuffle = True)
-
-	model = Sequential() 
-	model.add(Dense(units = 1000, activation = 'sigmoid', input_dim = x_train.shape[1], use_bias = True, bias_initializer = "random_uniform"))
-	model.add(Dense(units = 750, activation = 'sigmoid', use_bias = True, bias_initializer = "random_uniform"))
-	model.add(Dense(units = 500, activation = 'sigmoid', use_bias = True, bias_initializer = "random_uniform"))
-	model.add(Dense(units = 250, activation = 'sigmoid', use_bias = True, bias_initializer = "random_uniform"))
-	
-	model.add(Dense(units = len(labels_onehot[-1]), activation = 'softmax'))
+feature_validity_testing()
+# print(model_with_batch_normalization())+
 
 
-	model.compile(loss = 'categorical_crossentropy', optimizer = optimizer.Adam())
 
-	model.fit(x = x_train, y = y_train, validation_data = (x_test, y_test), verbose = 2, epochs = 200, batch_size = 1000, shuffle = True)
 
-	pred = model.predict(x_test)
-	pred = np.argmax(pred, axis = 1)
-	y_compare = np.argmax(y_test, axis = 1)
-	score = metrics.accuracy_score(y_compare, pred)
-	return "Final accuracy: {}".format(score * 100) + " %"
 
-print(model())
->>>>>>> 520ef63c33b749661aca33c7e72ec41797ebbcf0
+
+
+
