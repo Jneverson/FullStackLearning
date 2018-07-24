@@ -8,8 +8,9 @@ import keras.optimizers as optimizer
 from keras.utils.np_utils import to_categorical
 from keras.layers import Dropout
 from keras.layers import BatchNormalization
-import itertools as it
+import itertools
 from pathlib import Path
+import matplotlib.pyplot as plt
 
 featurelen = 17
 
@@ -40,7 +41,7 @@ def prepare_data(featurecols = range(featurelen)):
 
 def test_combination(combination):
 	col_list = list(range(featurelen))
-	col_combinations = list(it.combinations(col_list, combination))
+	col_combinations = list(itertools.combinations(col_list, combination))
 	print("Total Cycle count: " + str(len(col_combinations)))
 
 	for item in col_combinations:
@@ -93,8 +94,8 @@ def fisher_extraction_test(file):
 
 def feature_validity_testing(): 
 	# Destination File for Configurations
-	# file = open('/home/infinity/Documents/Neural_Research/model_configurations/nn_feature_configurations.txt', 'a+')
-	file = open(str(Path.home()) + 'nn_feature_configurations.txt', 'a+')
+	file = open('/home/infinity/Documents/Neural_Research/model_configurations/nn_feature_configurations.txt', 'a+')
+	# file = open(str(Path.home()) + '/nn_feature_configurations.txt', 'a+')
 	'''
 	#Base Test, All:------------------------------------------------------------------------------------
 	file.write("All Features:\n" + model())
@@ -111,11 +112,40 @@ def feature_validity_testing():
 
 	file.close()
 
-def model(featurecols = range(featurelen)):
-	logits = np.loadtxt(open('angrybirds.csv', "rb"), delimiter = ",", skiprows = 1, usecols = featurecols) 
+def plot_confusion_matrix(cm, classes, normalize=False, title='Confusion matrix', cmap=plt.cm.Blues):
+    """
+    This function prints and plots the confusion matrix.
+    Normalization can be applied by setting `normalize=True`.
+    """
+    if normalize:
+        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+        print("Normalized confusion matrix")
+    else:
+        print('Confusion matrix, without normalization')
 
-	labels = np.loadtxt(open('angrybirds.csv', "rb"), delimiter = ",", skiprows = 1, usecols = (-1,), dtype = np.uint8)
-	# logits, labels = prepare_data(featurecols = featurecols)
+    print(cm)
+
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.title(title)
+    plt.colorbar()
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes, rotation=45)
+    plt.yticks(tick_marks, classes)
+
+    fmt = '.2f' if normalize else 'd'
+    thresh = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        plt.text(j, i, format(cm[i, j], fmt),
+                 horizontalalignment="center", 	color="white" if cm[i, j] > thresh else "black")
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+
+def model(featurecols = range(featurelen)):
+	# logits = np.loadtxt(open('angrybirds.csv', "rb"), delimiter = ",", skiprows = 1, usecols = featurecols) 
+
+	# labels = np.loadtxt(open('angrybirds.csv', "rb"), delimiter = ",", skiprows = 1, usecols = (-1,), dtype = np.uint8)
+	logits, labels = prepare_data(featurecols = featurecols)
 	labels = [x - 22 for x in labels]
 
 	encoder = LabelEncoder()
@@ -141,8 +171,20 @@ def model(featurecols = range(featurelen)):
 	pred = model.predict(x_test)
 	pred = np.argmax(pred, axis = 1)
 	y_compare = np.argmax(y_test, axis = 1)
+	print(y_compare)
+	print(pred)
 	score = metrics.accuracy_score(y_compare, pred)
-	# print("Final accuracy: {}".format(score *100) + " %")
+	cnf_matrix = metrics.confusion_matrix(y_compare, pred)
+	# Compute confusion matrix
+	np.set_printoptions(precision=2)
+	# Plot non-normalized confusion matrix
+	plt.figure()
+	plot_confusion_matrix(cnf_matrix, classes=list(range(30)),title='Confusion matrix, without normalization')
+	# Plot normalized confusion matrix
+	plt.figure()
+	plot_confusion_matrix(cnf_matrix, classes=list(range(30)), normalize=True,title='Normalized confusion matrix')
+	plt.show()
+
 	return "Final accuracy: {}+".format(score * 100) + " %"
 
 def model_with_batch_normalization(featurecols = range(featurelen)):
@@ -191,9 +233,45 @@ def model_with_batch_normalization(featurecols = range(featurelen)):
 	# print("Final accuracy: {}".format(score *100) + " %")
 	return "Final accuracy: {}".format(score * 100) + " %"
 
-# print(model())
+
+def model_two(featurecols = range(featurelen)):
+	# logits = np.loadtxt(open('angrybirds.csv', "rb"), delimiter = ",", skiprows = 1, usecols = featurecols) 
+
+	# labels = np.loadtxt(open('angrybirds.csv', "rb"), delimiter = ",", skiprows = 1, usecols = (-1,), dtype = np.uint8)
+	logits, labels = prepare_data(featurecols = featurecols)
+	labels = [x - 22 for x in labels]
+
+	encoder = LabelEncoder()
+	encoder.fit(labels)
+	encoded_Y = encoder.transform(labels)
+	labels_onehot = to_categorical(encoded_Y, num_classes=30)
+
+	x_train, x_test, y_train, y_test = train_test_split(logits, labels_onehot, test_size = 0.25, random_state = 42, shuffle = True)
+
+	model = Sequential()
+	#Determine whether user is trying to enter a tuple representing a single column or multiple columns as another type
+	if(len(featurecols) == 1):
+		model.add(Dense(units = 1000, activation = 'sigmoid', input_dim = 1, use_bias = True, bias_initializer = "random_uniform"))
+	else: 
+		model.add(Dense(units = 1000, activation = 'sigmoid', input_dim = x_train.shape[1], use_bias = True, bias_initializer = "random_uniform"))
+	model.add(Dense(units = 750, activation = 'sigmoid', use_bias = True, bias_initializer = "random_uniform"))
+	model.add(Dense(units = 500, activation = 'sigmoid', use_bias = True, bias_initializer = "random_uniform"))
+	model.add(Dense(units = 250, activation = 'sigmoid', use_bias = True, bias_initializer = "random_uniform"))
+
+	model.add(Dense(units = len(labels_onehot[-1]), activation = 'softmax'))
+
+	model.compile(loss = 'categorical_crossentropy', optimizer = optimizer.Adam())
+	model.fit(x = x_train, y = y_train, validation_data = (x_test, y_test), verbose = 2, epochs = 200, batch_size = 1000, shuffle = True)
+	pred = model.predict(x_test)
+	pred = np.argmax(pred, axis = 1)
+	y_compare = np.argmax(y_test, axis = 1)
+	score = metrics.accuracy_score(y_compare, pred)
+	# print("Final accuracy: {}".format(score *100) + " %")
+	return "Final accuracy: {}+".format(score * 100) + " %"
+
+print(model())
 # prepare_data()
-feature_validity_testing()
+# feature_validity_testing()
 # print(model_with_batch_normalization())+
 
 
