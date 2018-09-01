@@ -1,4 +1,0 @@
-Driver: TestDriver
-Driving Task: idealtest2.xml
-Start Time: 2016-08-09 16:55:41.734
-
